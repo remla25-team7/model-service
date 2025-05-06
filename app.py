@@ -26,12 +26,23 @@ model, vectorizer = joblib.load("sentiment_model.pkl")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    data = request.get_json()
-    text = data.get('text', '')
-    cleaned = clean_text(text)
-    vec = vectorizer.transform([cleaned])
-    prediction = model.predict(vec)[0]
-    return jsonify({'sentiment': 'positive' if prediction == 1 else 'negative'})
+    try:
+        # Ensure valid JSON is provided
+        data = request.get_json(force=True)
+        if not data or 'text' not in data:
+            return jsonify({'error': 'Missing "text" field in request body'}), 400
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+        text = data['text']
+        if not isinstance(text, str) or not text.strip():
+            return jsonify({'error': '"text" must be a non-empty string'}), 400
+
+        # Process and predict
+        cleaned = clean_text(text)
+        vec = vectorizer.transform([cleaned])
+        prediction = model.predict(vec)[0]
+
+        return jsonify({'sentiment': 'positive' if prediction == 1 else 'negative'})
+
+    except Exception as e:
+        # Catch any unexpected errors
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
