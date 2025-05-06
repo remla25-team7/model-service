@@ -6,49 +6,53 @@ from pathlib import Path
 import joblib
 import requests
 from flask import Flask, request, jsonify
-from lib_ml.preprocessing import tokenize_review
 
-# CONFIGURATION (via env vars)
-MODEL_URL = os.getenv("MODEL_URL")  # e.g. "https://github.com/.../models.tar.gz"
-MODEL_DIR = Path(os.getenv("MODEL_DIR", "/app/models"))
-PORT = int(os.getenv("PORT", 8080))
+
+MODEL_URL  = os.getenv("MODEL_URL")         
+MODEL_DIR  = Path(os.getenv("MODEL_DIR", "/models"))
+PORT       = int(os.getenv("PORT", 8080))  
+TIMEOUT    = int(os.getenv("DL_TIMEOUT", 15))
 
 if not MODEL_URL:
-    raise RuntimeError("MODEL_URL environment variable is not set")
+    raise RuntimeError("MODEL_URL environment variable must be set")
 
-def fetch_and_extract_model(url: str, dest: Path):
-    """Download a .tar.gz from `url` and extract into `dest`."""
+def fetch_and_extract(url: str, dest: Path) -> None:
+    """Download a .tar.gz from `url` into `dest` unless it is already there."""
     dest.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, stream=True) as r:
+    vectorizer_file = dest / "vectorizer.pkl"
+    classifier_file = dest / "model.pkl"
+    if vectorizer_file.exists() and classifier_file.exists():
+        return                         
+    print(f"[model‑service] Downloading model from {url}")
+    with requests.get(url, stream=True, timeout=TIMEOUT) as r:
         r.raise_for_status()
-        # write to temp file
         with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp:
-            for chunk in r.iter_content(1024):
+            for chunk in r.iter_content(chunk_size=8192):
                 tmp.write(chunk)
             tmp_path = tmp.name
-
-    # extract
     with tarfile.open(tmp_path, "r:gz") as tar:
-        tar.extractall(path=dest.parent)
+        tar.extractall(path=dest)
     os.remove(tmp_path)
 
-# Ensure the model artifacts are present
-if not (MODEL_DIR / "vectorizer.pkl").exists() or not (MODEL_DIR / "classifier.joblib").exists():
-    fetch_and_extract_model(MODEL_URL, MODEL_DIR)
 
-# Load the vectorizer and classifier
+fetch_and_extract(MODEL_URL, MODEL_DIR)
+
+from lib_ml.preprocessing import tokenize_review  
+
 vectorizer = joblib.load(MODEL_DIR / "vectorizer.pkl")
-classifier = joblib.load(MODEL_DIR / "classifier.joblib")
+classifier = joblib.load(MODEL_DIR / "model.pkl")
+
 
 app = Flask(__name__)
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    data = request.get_json(force=True)
-    text = data.get("review_text", "")
+    """Return 1 for positive, 0 for negative sentiment."""
+    body = request.get_json(force=True)
+    text = body.get("review_text", "")
     X = vectorizer.transform([text])
-    pred = classifier.predict(X)[0]
-    return jsonify({"prediction": pred})
+    y = classifier.predict(X)[0]
+    return jsonify({"review": int(y)})
 
 @app.route("/health", methods=["GET"])
 def health():
