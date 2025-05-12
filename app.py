@@ -1,37 +1,38 @@
+import os, requests, joblib, tempfile, pathlib
+
+MODEL_URL      = os.environ["MODEL_URL"]
+VECTORIZER_URL = os.environ["VECTORIZER_URL"]
+CACHE_DIR      = pathlib.Path("/tmp/artefacts") 
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+def _fetch(url: str, dest: pathlib.Path):
+    if dest.exists():
+        return dest
+    headers = {}
+    if "GITHUB_TOKEN" in os.environ:       
+        headers["Authorization"] = f'token {os.environ["GITHUB_TOKEN"]}'
+    print(f"Downloading {url} → {dest}")
+    r = requests.get(url, headers=headers, timeout=30)
+    r.raise_for_status()
+    dest.write_bytes(r.content)
+    return dest
+
+model_path      = _fetch(MODEL_URL,      CACHE_DIR / "model.pkl")
+vectorizer_path = _fetch(VECTORIZER_URL, CACHE_DIR / "vectorizer.pkl")
+
+model      = joblib.load(model_path)
+vectorizer = joblib.load(vectorizer_path)
+
 from flask import Flask, request, jsonify
-import joblib
-import os
-import requests
-from lib_ml.preprocessing import clean_text
-
-MODEL_URL = os.environ.get('MODEL_URL', 'https://github.com/remla25-team7/model-training/releases/download/0.1.0/sentiment_model.pkl')
-MODEL_PATH = 'sentiment_model.pkl'
-
-# Download the model if it's not already present
-if not os.path.exists(MODEL_PATH):
-    print(f"Downloading model from {MODEL_URL}...")
-    response = requests.get(MODEL_URL)
-    with open(MODEL_PATH, 'wb') as f:
-        f.write(response.content)
-    print("Model downloaded.")
-
-
-
-
 app = Flask(__name__)
 
-
-# Load model
-model, vectorizer = joblib.load("sentiment_model.pkl")
-
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
-    data = request.get_json()
-    text = data.get('text', '')
-    cleaned = clean_text(text)
-    vec = vectorizer.transform([cleaned])
-    prediction = model.predict(vec)[0]
-    return jsonify({'sentiment': 'positive' if prediction == 1 else 'negative'})
+    text = request.json["text"]
+    X = vectorizer.transform([text]).toarray()
+    pred = int(model.predict(X)[0])
+    return jsonify({"review": pred})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    PORT = int(os.getenv("PORT", "8080"))
+    app.run(host="0.0.0.0", port=PORT)
