@@ -1,6 +1,8 @@
 FROM python:3.12.9-slim
 
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \ 
+    MODEL_URL=https://github.com/remla25-team7/model-training/releases/download/v0.3.0/model.pkl \
+    VECTORIZER_URL=https://github.com/remla25-team7/model-training/releases/download/v0.3.0/vectorizer.pkl
 
 WORKDIR /app
 
