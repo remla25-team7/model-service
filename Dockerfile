@@ -13,6 +13,6 @@ RUN pip install --upgrade pip && \
 
 COPY app.py .
 
-EXPOSE 8080        
+EXPOSE 5000
 
 ENTRYPOINT ["python","app.py"]
