@@ -9,8 +9,6 @@ def _fetch(url: str, dest: pathlib.Path):
     if dest.exists():
         return dest
     headers = {}
-    if "GITHUB_TOKEN" in os.environ:       
-        headers["Authorization"] = f'token {os.environ["GITHUB_TOKEN"]}'
     print(f"Downloading {url} → {dest}")
     r = requests.get(url, headers=headers, timeout=30)
     r.raise_for_status()
