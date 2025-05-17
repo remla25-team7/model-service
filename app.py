@@ -33,7 +33,7 @@ def predict():
 
     X    = vectorizer.transform([review]).toarray()
     pred = int(model.predict(X)[0])
-    return jsonify({"prediction": pred})
+    return jsonify({"sentiment": pred})
 
 if __name__ == "__main__":
     PORT = int(os.getenv("PORT", "5000"))
