@@ -26,8 +26,12 @@ app = Flask(__name__)
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    text = request.json["text"]
-    X = vectorizer.transform([text]).toarray()
+    data = request.get_json(silent=True)
+    review = data.get("review") if data else None
+    if not review:
+        return jsonify({"error": "Missing 'review' in JSON body"}), 400
+
+    X    = vectorizer.transform([review]).toarray()
     pred = int(model.predict(X)[0])
     return jsonify({"review": pred})
 
