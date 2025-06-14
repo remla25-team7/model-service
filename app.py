@@ -46,6 +46,8 @@ def api_key_required(f):
         # check if security is enabled and if the key matches
         if API_KEY:
             provided_key = request.headers.get('X-API-Key')
+            print(f"MODEL SERVICE: My key is '{API_KEY}'")
+            print(f"MODEL SERVICE: Received key is '{provided_key}'")
             if not provided_key or provided_key != API_KEY:
                 return jsonify({"error": "Unauthorized. Invalid or missing API Key."}), 401
         
