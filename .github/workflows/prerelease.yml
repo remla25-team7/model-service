@@ -74,7 +74,7 @@ jobs:
             🚀 This is a pre-release for version ${{ steps.version.outputs.base_tag }}
             
             **Pre-release Iteration**: ${{ steps.version.outputs.iteration }}
-            **Upcoming Patch Version**: v${{ steps.version.outputs.base_tag#v* }} → v${{ steps.version.outputs.next_tag }}
+            **Upcoming Patch Version**: v${{ steps.version.outputs.clean_base_tag }} → v${{ steps.version.outputs.next_tag }}
 
             Docker image available at:
             `ghcr.io/${{ github.repository_owner }}/model-service:${{ steps.version.outputs.next_tag }}`
