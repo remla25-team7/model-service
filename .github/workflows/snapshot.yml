@@ -1,0 +1,42 @@
+name: Snapshot Tag on Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Get latest release tag
+        id: get_latest
+        run: |
+          latest=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          echo "Latest tag: $latest"
+          echo "tag=$latest" >> $GITHUB_OUTPUT
+
+      - name: Compute next pre-release tag
+        id: tagger
+        run: |
+          latest="${{ steps.get_latest.outputs.tag }}"
+          patch=$(( $(echo $latest | cut -d. -f3) + 1 ))
+          minor=$(echo $latest | cut -d. -f2)
+          major=$(echo $latest | cut -d. -f1 | cut -c2-)
+          date=$(date +%Y%m%d)
+          sha=$(git rev-parse --short HEAD)
+          next="v${major}.${minor}.${patch}-pre-${date}-${sha}"
+          echo "next_tag=$next" >> $GITHUB_OUTPUT
+
+      - name: Create pre-release tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "${{ steps.tagger.outputs.next_tag }}"
+          git push origin "${{ steps.tagger.outputs.next_tag }}"

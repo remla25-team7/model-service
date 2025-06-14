@@ -1,0 +1,81 @@
+name: Pre-release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  generate-pre-release:
+    if: "!contains(github.ref_name, '-pre')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next pre-release version
+        id: version
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${RAW_TAG#v}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          NEXT_PATCH=$((PATCH + 1))
+          BASE="v${MAJOR}.${MINOR}.${NEXT_PATCH}-pre"
+
+          COUNT=$(git tag -l "${BASE}.*" | wc -l)
+          GIT_SHA=$(git rev-parse --short HEAD)
+          NEXT_TAG="${BASE}-$(date +%Y%m%d)-${GIT_SHA}"
+
+          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
+          echo "base_tag=$RAW_TAG" >> $GITHUB_OUTPUT
+          echo "iteration=$COUNT" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push pre-release image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/model-service:${{ steps.version.outputs.next_tag }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.next_tag }}
+
+      - name: Push pre-release Git tag
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git tag ${{ steps.version.outputs.next_tag }}
+          git push origin ${{ steps.version.outputs.next_tag }}
+
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.next_tag }}
+          name: "Pre-release ${{ steps.version.outputs.next_tag }}"
+          body: |
+            🚀 This is a pre-release for version ${{ steps.version.outputs.base_tag }}
+            
+            **Pre-release Iteration**: ${{ steps.version.outputs.iteration }}
+            **Upcoming Patch Version**: v${{ steps.version.outputs.base_tag#v* }} → v${{ steps.version.outputs.next_tag }}
+
+            Docker image available at:
+            `ghcr.io/${{ github.repository_owner }}/model-service:${{ steps.version.outputs.next_tag }}`
+          prerelease: true
