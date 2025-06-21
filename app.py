@@ -50,6 +50,9 @@ def api_key_required(f):
             print(f"MODEL SERVICE: Received key is '{provided_key}'")
             if not provided_key or provided_key != API_KEY:
                 return jsonify({"error": "Unauthorized. Invalid or missing API Key."}), 401
+        else:
+            return jsonify({"error": "Unauthorized. Invalid or missing API Key."}), 401
+
         
         # if key is valid or security is disabled, proceed with the request
         return f(*args, **kwargs)
