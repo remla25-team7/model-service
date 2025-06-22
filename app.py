@@ -30,7 +30,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 
-SECRET_FILE_PATH = '/run/secrets/model_credentials'
+SECRET_FILE_PATH = '/app/secrets/model_credentials'
 API_KEY = None
 
 try:
