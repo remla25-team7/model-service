@@ -46,7 +46,7 @@ for path_str in SECRET_PATHS:
         break
 
 if not API_KEY:
-    print(f"WARNING: Secret file not found in any known location {SECRET_PATHS}. API key security is disabled.")
+    print(f"WARNING: Secret file not found in any known location {SECRET_PATHS}.")
 
 # define the decorator to protect endpoints
 def api_key_required(f):
