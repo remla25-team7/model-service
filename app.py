@@ -12,6 +12,8 @@ from flask import Flask, request, jsonify
 
 MODEL_URL      = os.environ["MODEL_URL"]
 VECTORIZER_URL = os.environ["VECTORIZER_URL"]
+MODEL_SERVICE_VERSION = os.getenv("MODEL_SERVICE_VERSION", "unknown")
+
 if os.getenv("IN_DOCKER") != "1":
     CACHE_DIR = pathlib.Path("./model-cache")
 else:
@@ -125,11 +127,11 @@ def predict():
 @app.route("/version", methods=["GET"])
 def version():
     """
-    Return the current model URL. 
+    Return the model service version. 
     ---
     tags:
       - Metadata
-    summary: Model URL used for version info
+    summary: Model version info
     responses:
       200:
         description: Version metadata
@@ -139,9 +141,7 @@ def version():
             model_url:
               type: string
     """
-    return jsonify({
-        "model_url": MODEL_URL,
-    })
+    return jsonify({"model_service_version": MODEL_SERVICE_VERSION})
 
 if __name__ == "__main__":
     PORT = int(os.getenv("MODEL_SERVICE_PORT", "5000"))

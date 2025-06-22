@@ -18,6 +18,10 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+ARG MODEL_SERVICE_VERSION
+
+ENV MODEL_SERVICE_VERSION=$MODEL_SERVICE_VERSION
+
 COPY app.py .
 
 EXPOSE 5000
