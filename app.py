@@ -4,10 +4,11 @@ import joblib
 import tempfile
 import pathlib
 from functools import wraps
+from lib_ml.preprocessing import clean_review
 
 MODEL_URL      = os.environ["MODEL_URL"]
 VECTORIZER_URL = os.environ["VECTORIZER_URL"]
-CACHE_DIR      = pathlib.Path("/tmp/artefacts") 
+CACHE_DIR      = pathlib.Path("/model-cache") 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 def _fetch(url: str, dest: pathlib.Path):
@@ -74,7 +75,8 @@ def predict():
     if not review:
         return jsonify({"error": "Missing 'review' in JSON body"}), 400
 
-    X    = vectorizer.transform([review]).toarray()
+    cleaned = clean_review(review)
+    X    = vectorizer.transform([cleaned]).toarray()
     pred = int(model.predict(X)[0])
     return jsonify({"sentiment": pred})
 

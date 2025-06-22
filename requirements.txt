@@ -2,4 +2,4 @@ Flask>=3.0,<4.0
 requests>=2.31,<3.0
 joblib>=1.4,<2.0
 scikit-learn>=1.3,<2.0    
-remla25-team7-lib-ml
+git+https://github.com/remla25-team7/lib-ml.git@main
