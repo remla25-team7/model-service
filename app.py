@@ -144,5 +144,5 @@ def version():
     return jsonify({"model_service_version": MODEL_SERVICE_VERSION})
 
 if __name__ == "__main__":
-    PORT = int(os.getenv("MODEL_SERVICE_PORT", "5000"))
+    PORT = int(os.getenv("MODEL_SERVICE_PORT", "5003"))
     app.run(host="0.0.0.0", port=PORT)
