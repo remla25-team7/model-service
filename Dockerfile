@@ -1,9 +1,12 @@
 FROM python:3.12.9-slim
 
+ENV MODEL_VERSION="v1.2.1"
+
 ENV PYTHONUNBUFFERED=1 \ 
-    MODEL_URL=https://github.com/remla25-team7/model-training/releases/download/v0.3.0/model.pkl \
-    VECTORIZER_URL=https://github.com/remla25-team7/model-training/releases/download/v0.3.0/vectorizer.pkl \
-    PORT=8080
+    MODEL_URL=https://github.com/remla25-team7/model-training/releases/download/${MODEL_VERSION}}/model.pkl \
+    VECTORIZER_URL=https://github.com/remla25-team7/model-training/releases/download/${MODEL_VERSION}}/vectorizer.pkl \
+    PORT=8080 \
+    IN_DOCKER=1
 
 WORKDIR /app
 
