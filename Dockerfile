@@ -5,7 +5,7 @@ ENV MODEL_VERSION="v1.2.1"
 ENV PYTHONUNBUFFERED=1 \ 
     MODEL_URL=https://github.com/remla25-team7/model-training/releases/download/${MODEL_VERSION}/model.pkl \
     VECTORIZER_URL=https://github.com/remla25-team7/model-training/releases/download/${MODEL_VERSION}/vectorizer.pkl \
-    PORT=8080 \
+    MODEL_SERVICE_PORT=5000 \
     IN_DOCKER=1
 
 WORKDIR /app
