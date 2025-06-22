@@ -30,14 +30,23 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 
-SECRET_FILE_PATH = '/app/secrets/model_credentials'
+SECRET_PATHS = [
+    '/run/secrets/model_credentials',  # docker-compose default
+    '/app/secrets/model_credentials',  # kubernetes default
+]
+
 API_KEY = None
 
-try:
-    with open(SECRET_FILE_PATH, 'r') as f:
-        API_KEY = f.read().strip()
-except FileNotFoundError:
-    print(f"WARNING: Secret file not found at {SECRET_FILE_PATH}. API key security is disabled.")
+for path_str in SECRET_PATHS:
+    path = pathlib.Path(path_str)
+    if path.exists():
+        print(f"MODEL SERVICE: Successfully loaded API key from {path_str}.")
+        with path.open('r') as f:
+            API_KEY = f.read().strip()
+        break
+
+if not API_KEY:
+    print(f"WARNING: Secret file not found in any known location {SECRET_PATHS}. API key security is disabled.")
 
 # define the decorator to protect endpoints
 def api_key_required(f):
@@ -54,7 +63,7 @@ def api_key_required(f):
             return jsonify({"error": "Unauthorized. Invalid or missing API Key."}), 401
 
         
-        # if key is valid or security is disabled, proceed with the request
+        # if key is valid proceed with the request
         return f(*args, **kwargs)
     return decorated_function
 
