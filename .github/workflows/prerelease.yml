@@ -1,81 +1,91 @@
-name: Pre-release
+name: Pre-Release
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches-ignore:
+      - main
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  generate-pre-release:
-    if: "!contains(github.ref_name, '-pre')"
+  pre-release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Compute next pre-release version
-        id: version
+      - name: Load version from version.txt
+        id: versioning
         run: |
-          RAW_TAG="${GITHUB_REF#refs/tags/}"
-          VERSION="${RAW_TAG#v}"
+          VERSION=$(cat version.txt)
+          echo "Current version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          NEXT_PATCH=$((PATCH + 1))
-          BASE="v${MAJOR}.${MINOR}.${NEXT_PATCH}-pre"
+          BASE=$(echo "$VERSION" | sed -E 's/-pre[0-9]+$//')
+          CURRENT_PRE=$(echo "$VERSION" | sed -E 's/^.*-pre([0-9]+)$/\1/')
+          NEXT_PRE=$((CURRENT_PRE + 1))
+          NEXT_VERSION="${BASE}-pre${NEXT_PRE}"
 
-          COUNT=$(git tag -l "${BASE}.*" | wc -l)
-          GIT_SHA=$(git rev-parse --short HEAD)
-          NEXT_TAG="${BASE}-$(date +%Y%m%d)-${GIT_SHA}"
+          echo "base_version=$BASE" >> $GITHUB_ENV
+          echo "next_pre_version=$NEXT_VERSION" >> $GITHUB_ENV
 
-          echo "next_tag=$NEXT_TAG" >> $GITHUB_OUTPUT
-          echo "base_tag=$RAW_TAG" >> $GITHUB_OUTPUT
-          echo "iteration=$COUNT" >> $GITHUB_OUTPUT
+          MAJOR=$(echo "$BASE" | cut -d. -f1 | sed 's/v//')
+          MINOR=$(echo "$BASE" | cut -d. -f2)
+          PATCH=$(echo "$BASE" | cut -d. -f3)
+          echo "version_major=$MAJOR" >> $GITHUB_ENV
+          echo "version_minor=$MINOR" >> $GITHUB_ENV
+          echo "version_patch=$PATCH" >> $GITHUB_ENV
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
+      - name: Log in to GitHub container registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push pre-release image
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.version }}
+          prerelease: true
+          generate_release_notes: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push multi-arch Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/model-service:${{ steps.version.outputs.next_tag }}
+          platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ steps.version.outputs.next_tag }}
+            MODEL_SERVICE_VERSION=${{ env.version }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ env.version }}
+            ghcr.io/${{ github.repository }}:prelatest
 
-      - name: Push pre-release Git tag
+      - name: Bump version.txt and tag next pre-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git tag ${{ steps.version.outputs.next_tag }}
-          git push origin ${{ steps.version.outputs.next_tag }}
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      - name: Create GitHub Pre-release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.next_tag }}
-          name: "Pre-release ${{ steps.version.outputs.next_tag }}"
-          body: |
-            🚀 This is a pre-release for version ${{ steps.version.outputs.base_tag }}
-            
-            **Pre-release Iteration**: ${{ steps.version.outputs.iteration }}
-            **Upcoming Patch Version**: v${{ steps.version.outputs.clean_base_tag }} → v${{ steps.version.outputs.next_tag }}
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current branch: $CURRENT_BRANCH"
 
-            Docker image available at:
-            `ghcr.io/${{ github.repository_owner }}/model-service:${{ steps.version.outputs.next_tag }}`
-          prerelease: true
+          NEXT_VERSION="${{ env.next_pre_version }}"
+          echo "$NEXT_VERSION" > version.txt
+
+          git add version.txt
+          git commit -m "chore: bump to $NEXT_VERSION"
+          git push origin $CURRENT_BRANCH
+
+          git tag "$NEXT_VERSION"
+          git push origin "$NEXT_VERSION"
