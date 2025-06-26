@@ -1,1 +1,5 @@
+<<<<<<< razvan-w10-confidence
 v0.3.1-pre3
+=======
+v0.2.24-pre1
+>>>>>>> main
