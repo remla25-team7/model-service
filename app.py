@@ -120,9 +120,16 @@ def predict():
         return jsonify({"error": "Missing 'review' in JSON body"}), 400
 
     cleaned = clean_review(review)
-    X    = vectorizer.transform([cleaned]).toarray()
-    pred = int(model.predict(X)[0])
-    return jsonify({"sentiment": pred})
+    X    = vectorizer.transform([cleaned])
+
+    probas = model.predict_proba(X)[0]
+    pred = int(probas.argmax())
+    confidence = float(probas[pred])
+
+    return jsonify({
+        "sentiment": pred,
+        "confidence": confidence
+    })
 
 @app.route("/version", methods=["GET"])
 def version():
